@@ -163,7 +163,9 @@ struct ContentView: View {
                     Slider(value: $inputEngine.deadzone, in: 0.05...0.35, step: 0.01)
                 }
 
-                LabeledContent("Last input tick") {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Last input tick")
+                    Spacer()
                     Text(inputEngine.lastTickSummary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -178,23 +180,27 @@ struct ContentView: View {
                 )
             }
 
-            Section("Default layout (Xbox / PlayStation)") {
+            Section {
                 mappingRow("Left stick", "Move pointer")
                 mappingRow("Left stick click (L3)", "Toggle virtual keyboard")
                 mappingRow("Right stick", "Scroll (vertical / horizontal)")
                 mappingRow("A (south)", "Left click")
                 mappingRow("B (east)", "Right click")
                 mappingRow("X (west)", "Middle click")
+            } header: {
+                Text("Default layout (Xbox / PlayStation)")
             }
         }
-        .formStyle(.grouped)
         .padding()
     }
 
     private func mappingRow(_ control: String, _ action: String) -> some View {
-        LabeledContent(control) {
+        HStack(alignment: .firstTextBaseline) {
+            Text(control)
+            Spacer()
             Text(action)
                 .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
         }
     }
 

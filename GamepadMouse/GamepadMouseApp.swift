@@ -27,6 +27,5 @@ struct GamepadMouseApp: App {
                 .environmentObject(gamepadUIState)
                 .environmentObject(keyboardManager)
         }
-        .defaultSize(width: 560, height: 720)
     }
 }
