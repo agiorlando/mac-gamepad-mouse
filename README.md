@@ -108,4 +108,5 @@ Wireless controllers should be paired in **Bluetooth** (System Settings or Syste
 
 - **Pointer does not move:** Confirm Accessibility is enabled for Gamepad Mouse and that **Enable mouse control** is on.
 - **No controller in the list:** Connect via USB or Bluetooth; press a button on the pad so it wakes; try **Search for wireless controllers** again.
+- **Laggy pointer on an older Mac, but the same controller is smooth in games/emulators:** That is usually **not** “Bluetooth Classic vs Bluetooth LE.” Games read the pad inside their render/input loop; this app polls on the main thread and (until tuned) could refresh SwiftUI and query every display on every move. Prefer a **USB cable** if you want to rule out radio congestion, but expect the bigger win from **closing the Gamepad Mouse window** or staying on a light view so the UI is not redrawing constantly, and from **Release** builds (Debug is heavier). Recent builds merge timers and avoid pointless UI updates while the stick is held.
 - **Elite paddles:** This version uses the standard extended profile only; paddles may not map unless exposed by the system as extra elements.

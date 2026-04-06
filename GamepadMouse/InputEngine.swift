@@ -6,6 +6,9 @@ import GameController
 /// 60 Hz poll: maps extended gamepad → mouse injector (and D-pad arrows when the OSK is closed).
 final class InputEngine: ObservableObject {
 
+    /// When mouse control runs its main timer, keyboard manager folds L3 + focus polling into this loop (avoids a second 30 Hz timer on the main RunLoop).
+    weak var mergePollCoordinator: GlobalKeyboardManager?
+
     @Published var isEnabled = false
     @Published var pointerSensitivity: Double = 1200
     @Published var scrollSpeed: Double = 35
@@ -33,6 +36,8 @@ final class InputEngine: ObservableObject {
     private let dpadRepeatInitial: TimeInterval = 0.35
     private let dpadRepeatInterval: TimeInterval = 0.08
 
+    private var mergedPollFrameIndex = 0
+
     init(controllerService: ControllerService, mouse: MouseInjector, keyboard: KeyboardInjector, uiState: GamepadUIState) {
         self.controllerService = controllerService
         self.mouse = mouse
@@ -52,13 +57,21 @@ final class InputEngine: ObservableObject {
     }
 
     func startStopTimerIfNeeded() {
-        stopTimer()
-        guard isEnabled, AccessibilityGate.isTrusted else { return }
+        timer?.invalidate()
+        timer = nil
+        guard isEnabled, AccessibilityGate.isTrusted else {
+            releaseAllButtons()
+            lastTickTime = nil
+            dpadRepeatDeadline.removeAll()
+            mergePollCoordinator?.inputEngineMainTimerStoppedFromMainRunLoop()
+            return
+        }
+        mergePollCoordinator?.inputEngineMainTimerStartedFromMainRunLoop()
         lastTickTime = nil
         let t = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.tick()
         }
-        t.tolerance = 0.005
+        t.tolerance = 0.02
         RunLoop.main.add(t, forMode: .common)
         timer = t
     }
@@ -69,6 +82,7 @@ final class InputEngine: ObservableObject {
         releaseAllButtons()
         lastTickTime = nil
         dpadRepeatDeadline.removeAll()
+        mergePollCoordinator?.inputEngineMainTimerStoppedFromMainRunLoop()
     }
 
     func onEnabledChanged() {
@@ -85,8 +99,13 @@ final class InputEngine: ObservableObject {
 
     private func tick() {
         guard isEnabled, AccessibilityGate.isTrusted else { return }
-        guard let pad = controllerService.selectedController?.extendedGamepad else {
-            lastTickSummary = "No extended gamepad"
+
+        mergedPollFrameIndex += 1
+        let padEarly = controllerService.selectedController?.extendedGamepad
+        mergePollCoordinator?.onInputEngineTimerTickFromMainRunLoop(frameIndex: mergedPollFrameIndex, extendedGamepad: padEarly)
+
+        guard let pad = padEarly else {
+            setLastTickSummaryIfChanged("No extended gamepad")
             return
         }
 
@@ -146,7 +165,13 @@ final class InputEngine: ObservableObject {
             parts.append("buttons")
         }
         if !osk, dpadUp || dpadDown || dpadLeft || dpadRight { parts.append("dpad") }
-        lastTickSummary = parts.isEmpty ? "idle" : parts.joined(separator: ", ")
+        setLastTickSummaryIfChanged(parts.isEmpty ? "idle" : parts.joined(separator: ", "))
+    }
+
+    /// Avoid assigning `@Published` every frame when the string is unchanged (was hammering SwiftUI on slower Macs).
+    private func setLastTickSummaryIfChanged(_ newValue: String) {
+        guard newValue != lastTickSummary else { return }
+        lastTickSummary = newValue
     }
 
     private func handleDpadArrows(dpad: GCControllerDirectionPad, now: Date) {

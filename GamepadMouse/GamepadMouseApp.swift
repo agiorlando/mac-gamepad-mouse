@@ -13,10 +13,12 @@ struct GamepadMouseApp: App {
         let mouse = MouseInjector()
         let keys = KeyboardInjector()
         let km = GlobalKeyboardManager(controllerService: cs, gamepadUIState: ui, keyboardInjector: keys)
+        let ie = InputEngine(controllerService: cs, mouse: mouse, keyboard: keys, uiState: ui)
+        km.attachMergedPolling(for: ie)
         _controllerService = StateObject(wrappedValue: cs)
         _gamepadUIState = StateObject(wrappedValue: ui)
         _keyboardManager = StateObject(wrappedValue: km)
-        _inputEngine = StateObject(wrappedValue: InputEngine(controllerService: cs, mouse: mouse, keyboard: keys, uiState: ui))
+        _inputEngine = StateObject(wrappedValue: ie)
     }
 
     var body: some Scene {

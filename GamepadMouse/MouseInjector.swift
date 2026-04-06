@@ -9,6 +9,47 @@ import CoreGraphics
 final class MouseInjector {
 
     private let eventSource = CGEventSource(stateID: .hidSystemState)
+    private var screenParamsObserver: NSObjectProtocol?
+
+    /// Union of `NSScreen.frame` in AppKit global coords; refreshed when displays change (avoids scanning every pointer tick).
+    private var cachedClampRect: (minX: CGFloat, maxX: CGFloat, minY: CGFloat, maxY: CGFloat)?
+
+    init() {
+        refreshCachedScreenUnion()
+        screenParamsObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshCachedScreenUnion()
+        }
+    }
+
+    deinit {
+        if let screenParamsObserver {
+            NotificationCenter.default.removeObserver(screenParamsObserver)
+        }
+    }
+
+    private func refreshCachedScreenUnion() {
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else {
+            cachedClampRect = nil
+            return
+        }
+        var minX = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude
+        var minY = CGFloat.greatestFiniteMagnitude
+        var maxY = -CGFloat.greatestFiniteMagnitude
+        for screen in screens {
+            let f = screen.frame
+            minX = min(minX, f.minX)
+            maxX = max(maxX, f.maxX)
+            minY = min(minY, f.minY)
+            maxY = max(maxY, f.maxY)
+        }
+        cachedClampRect = (minX, maxX, minY, maxY)
+    }
 
     func currentMouseLocation() -> CGPoint {
         NSEvent.mouseLocation
@@ -90,23 +131,15 @@ final class MouseInjector {
     }
 
     private func clampToScreens(x: CGFloat, y: CGFloat) -> CGPoint {
-        var minX = CGFloat.greatestFiniteMagnitude
-        var maxX = -CGFloat.greatestFiniteMagnitude
-        var minY = CGFloat.greatestFiniteMagnitude
-        var maxY = -CGFloat.greatestFiniteMagnitude
-        for screen in NSScreen.screens {
-            let f = screen.frame
-            minX = min(minX, f.minX)
-            maxX = max(maxX, f.maxX)
-            minY = min(minY, f.minY)
-            maxY = max(maxY, f.maxY)
+        if cachedClampRect == nil {
+            refreshCachedScreenUnion()
         }
-        if minX > maxX {
+        guard let r = cachedClampRect else {
             return CGPoint(x: x, y: y)
         }
         return CGPoint(
-            x: x.clamped(to: minX...maxX),
-            y: y.clamped(to: minY...maxY)
+            x: x.clamped(to: r.minX...r.maxX),
+            y: y.clamped(to: r.minY...r.maxY)
         )
     }
 }

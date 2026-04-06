@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import GameController
 import SwiftUI
 
 // MARK: - AX: detect keyboard-capable focus (any app)
@@ -94,6 +95,11 @@ final class GlobalKeyboardManager: ObservableObject {
         startAuxiliaryPolling()
     }
 
+    /// Call once from `GamepadMouseApp` so when mouse control is on we share one 60 Hz timer instead of also running a 30 Hz aux timer.
+    func attachMergedPolling(for inputEngine: InputEngine) {
+        inputEngine.mergePollCoordinator = self
+    }
+
     deinit {
         auxTimer?.invalidate()
     }
@@ -156,11 +162,58 @@ final class GlobalKeyboardManager: ObservableObject {
     private func startAuxiliaryPolling() {
         auxTimer?.invalidate()
         let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.auxTick() }
+            self?.auxTick()
         }
         t.tolerance = 0.02
         RunLoop.main.add(t, forMode: .common)
         auxTimer = t
+    }
+
+    /// Stops the 30 Hz timer while `InputEngine` owns a 60 Hz timer (same main-thread work, half as many wakeups).
+    func inputEngineMainTimerStarted() {
+        auxTimer?.invalidate()
+        auxTimer = nil
+    }
+
+    /// Restarts aux polling when mouse control turns off (L3 + auto-show still needed).
+    func inputEngineMainTimerStopped() {
+        startAuxiliaryPolling()
+    }
+
+    /// Folded into `InputEngine`’s 60 Hz tick: L3 every frame, Accessibility focus poll ~5 Hz (every 12 frames).
+    func onInputEngineTimerTick(frameIndex: Int, extendedGamepad: GCExtendedGamepad?) {
+        guard AccessibilityGate.isTrusted else { return }
+
+        if let pad = extendedGamepad {
+            let l3 = pad.leftThumbstickButton?.isPressed == true
+            if l3 && !l3WasDown {
+                togglePanel()
+            }
+            l3WasDown = l3
+        }
+
+        guard autoShowOnTextFocus else { return }
+        guard frameIndex % 12 == 0 else { return }
+        performAutoShowFocusPoll()
+    }
+
+    // `InputEngine`’s `Timer` fires on the main run loop but is not MainActor-isolated; hop into the actor without async latency.
+    nonisolated func inputEngineMainTimerStartedFromMainRunLoop() {
+        MainActor.assumeIsolated {
+            self.inputEngineMainTimerStarted()
+        }
+    }
+
+    nonisolated func inputEngineMainTimerStoppedFromMainRunLoop() {
+        MainActor.assumeIsolated {
+            self.inputEngineMainTimerStopped()
+        }
+    }
+
+    nonisolated func onInputEngineTimerTickFromMainRunLoop(frameIndex: Int, extendedGamepad: GCExtendedGamepad?) {
+        MainActor.assumeIsolated {
+            self.onInputEngineTimerTick(frameIndex: frameIndex, extendedGamepad: extendedGamepad)
+        }
     }
 
     private func auxTick() {
@@ -174,12 +227,16 @@ final class GlobalKeyboardManager: ObservableObject {
             l3WasDown = l3
         }
 
+        guard autoShowOnTextFocus else { return }
+
         focusPollCounter += 1
         guard focusPollCounter >= 6 else { return }
         focusPollCounter = 0
 
-        guard autoShowOnTextFocus else { return }
+        performAutoShowFocusPoll()
+    }
 
+    private func performAutoShowFocusPoll() {
         guard let role = AXFocusInspector.focusedElementRole() else {
             suppressAutoReopenUntilTextBlur = false
             if lastSawTextCapableFocus {
