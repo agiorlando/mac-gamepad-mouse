@@ -4,13 +4,27 @@
 
 # Gamepad Mouse
 
+## TL;DR
+
+1. **Get the app:** Clone or **Download ZIP** → copy **`dist/GamepadMouse.app`** into **`/Applications`** → open it. If macOS blocks it: **right-click → Open** once.
+2. **Permission:** **System Settings → Privacy & Security → Accessibility** (macOS 13+) — or **System Preferences → Security & Privacy → Privacy → Accessibility** (macOS 12) — enable **Gamepad Mouse**.
+3. **Use it:** Pair your gamepad (Bluetooth or USB), launch the app, turn on **Enable mouse control**.
+
+**macOS 12+.** **No Xcode** needed for the pre-built app in `dist/`.
+
+---
+
+Everything below is optional detail: what the app does, a fuller install walkthrough, building from source, default controls, and troubleshooting.
+
+## What it is
+
 Native macOS app that drives the system pointer from a Bluetooth or USB gamepad using Apple’s Game Controller framework and synthetic `CGEvent` input. Pair an Xbox, PlayStation, or other extended gamepad, grant **Accessibility**, then move the cursor with the left stick, scroll with the right stick, and click with face buttons.
 
 **Requirements:** macOS **12 (Monterey)** or later. **Xcode 14+** only if you are [building from source](#building-from-source).
 
 **Where to enable Accessibility / Bluetooth:** On **macOS 13+**, use **System Settings** (Privacy & Security → Accessibility; Bluetooth in the sidebar). On **macOS 12**, use **System Preferences** → **Security & Privacy** → **Privacy** → Accessibility (and **Bluetooth** in System Preferences).
 
-## Quick install
+## Install (full walkthrough)
 
 A pre-built universal **Release** app (`x86_64` + `arm64`) is checked in at **`dist/GamepadMouse.app`**.
 
@@ -69,7 +83,7 @@ tccutil reset Accessibility com.gamepadmouse.GamepadMouse
 
 ## Distribution and signing
 
-The **Quick install** app in **`dist/`** is built the same way as a local Release but uses ad hoc signing (“Sign to Run Locally”). For sharing beyond “download the repo,” prefer one of the following:
+The pre-built app in **`dist/`** is built the same way as a local Release but uses ad hoc signing (“Sign to Run Locally”). For sharing beyond “download the repo,” prefer one of the following:
 
 1. In Xcode: **Product → Archive**, then **Distribute App** → **Copy App** (or export a **Developer ID** signed build for wider distribution).
 2. Zip `GamepadMouse.app` or place it in `/Applications` on the target machine.
