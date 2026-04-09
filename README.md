@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="GamepadMouse.iconset/icon_256x256.png" width="128" height="128" alt="Gamepad Mouse app icon" />
+</p>
+
 # Gamepad Mouse
 
 Native macOS app that drives the system pointer from a Bluetooth or USB gamepad using Apple’s Game Controller framework and synthetic `CGEvent` input. Pair an Xbox, PlayStation, or other extended gamepad, grant **Accessibility**, then move the cursor with the left stick, scroll with the right stick, and click with face buttons.
