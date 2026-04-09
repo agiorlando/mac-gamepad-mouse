@@ -6,6 +6,8 @@
 	<string>25D2128</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Gamepad Mouse</string>
 	<key>CFBundleExecutable</key>
 	<string>GamepadMouse</string>
 	<key>CFBundleIconFile</key>
