@@ -6,55 +6,48 @@
 
 Native macOS app that drives the system pointer from a Bluetooth or USB gamepad using Apple’s Game Controller framework and synthetic `CGEvent` input. Pair an Xbox, PlayStation, or other extended gamepad, grant **Accessibility**, then move the cursor with the left stick, scroll with the right stick, and click with face buttons.
 
-**Requirements:** macOS **12 (Monterey)** or later on every machine that runs the app. **Xcode 14+** if you are building from source (newer Xcode is fine).
+**Requirements:** macOS **12 (Monterey)** or later. **Xcode 14+** only if you are [building from source](#building-from-source).
 
 **Where to enable Accessibility / Bluetooth:** On **macOS 13+**, use **System Settings** (Privacy & Security → Accessibility; Bluetooth in the sidebar). On **macOS 12**, use **System Preferences** → **Security & Privacy** → **Privacy** → Accessibility (and **Bluetooth** in System Preferences).
 
-## Run on another computer (Intel or Apple Silicon)
+## Quick install
 
-The app does not depend on Apple Silicon. **Release builds are universal** (`x86_64` + `arm64`), so one `.app` copied from an Apple Silicon Mac runs on Intel Macs as long as macOS is 12 or newer.
+A pre-built universal **Release** app (`x86_64` + `arm64`) is checked in at **`dist/GamepadMouse.app`**.
 
-### Option A — Copy a built app
+1. **Clone** this repository or **download the ZIP** (**Code** → **Download ZIP** on GitHub) and expand it.
+2. Copy **`dist/GamepadMouse.app`** into **`/Applications`** (drag in Finder or duplicate the folder).
+3. Open **Gamepad Mouse** from Applications. If Gatekeeper complains about an unidentified developer, **right-click the app → Open** the first time and confirm.
+4. Grant **Accessibility** (see above): unlock, enable **Gamepad Mouse**, then quit and reopen the app if macOS asks you to.
+5. Pair your gamepad (Bluetooth or USB) and turn on **Enable mouse control** in the app. Use the **Test** tab to verify clicks and scrolling.
 
-1. On the machine where you build: create a **Release** build (see [Command-line Release build](#command-line-release-build-universal-binary) below), or use **Product → Archive** in Xcode and **Distribute App → Copy App**.
-2. Copy `GamepadMouse.app` to the other Mac (AirDrop, USB, shared folder, or zip and transfer). Putting it under `/Applications` is fine.
-3. If Gatekeeper complains about an unidentified developer, **right-click the app → Open** the first time and confirm.
-4. On the **other Mac**, open **Privacy → Accessibility** (see requirements above for System Settings vs System Preferences), unlock, and **enable Gamepad Mouse** (same as on your dev machine). Launch the app once if it does not appear in the list yet.
-5. Pair the controller in **Bluetooth** (or USB), then enable **mouse control** in the app.
+You do **not** need Xcode for this path.
 
-You do **not** need Xcode on the Intel Mac unless you want to build there.
+## Building from source
 
-### Option B — Build on the Intel Mac
+Use this when you want to change the code or produce your own `.app` without using the checked-in `dist` build.
 
-1. Install Xcode from the Mac App Store (or Apple’s developer downloads).
-2. Clone or copy this repository, open `GamepadMouse.xcodeproj`, select the **GamepadMouse** scheme and **My Mac** (Xcode will use the native architecture, `x86_64` on Intel).
-3. Run (⌘R) for a local debug build, or **Product → Archive** / Release build to share the `.app` elsewhere.
+1. Open **`GamepadMouse.xcodeproj`** in Xcode, select the **GamepadMouse** scheme and **My Mac**, then **Run** (⌘R) for a Debug build.
+2. For a **universal Release** binary (Intel + Apple Silicon in one executable), build for **generic macOS** from an Apple Silicon Mac, or use **Product → Archive** and **Distribute App → Copy App**.
 
 ### Command-line Release build (universal binary)
 
-From the repo root on an Apple Silicon Mac, a Release build for **generic macOS** produces a single fat binary Intel Macs can run:
+From the repo root on an Apple Silicon Mac:
 
 ```bash
 xcodebuild -project GamepadMouse.xcodeproj -scheme GamepadMouse -configuration Release \
   -destination 'generic/platform=macOS' build
 ```
 
-The app bundle is under Xcode’s **DerivedData** `Build/Products/Release/`, or use **Product → Show Build Folder in Finder** after archiving. To confirm both slices are present:
+The app bundle lands under Xcode **DerivedData** (`Build/Products/Release/`), or **Product → Show Build Folder in Finder** after an archive. Confirm both CPU slices:
 
 ```bash
 lipo -archs "path/to/GamepadMouse.app/Contents/MacOS/GamepadMouse"
 # expect: x86_64 arm64
 ```
 
-**Debug** builds on Apple Silicon are often **arm64-only** (`ONLY_ACTIVE_ARCH`); use **Release** + **generic** (or Archive) when you need Intel compatibility in one file.
+**Debug** builds on Apple Silicon are often **arm64-only** (`ONLY_ACTIVE_ARCH`); use **Release** + **generic** (or Archive) when you need a single file that runs on Intel Macs too.
 
-## Install and run (this Mac)
-
-1. Open `GamepadMouse.xcodeproj` in Xcode.
-2. Select the **GamepadMouse** scheme and **My Mac**, then Run (⌘R).
-3. Pair your controller in **Bluetooth** (System Settings or System Preferences, depending on macOS version) if it is not already connected.
-4. In Gamepad Mouse, use **Open Accessibility Settings** and enable the app under **Privacy → Accessibility**. Quit and reopen the app if macOS asks you to.
-5. Choose your controller, turn on **Enable mouse control**, and use the **Test** tab to verify clicks and scrolling.
+## Background control
 
 **Using another app while controlling the Mac:** The app sets **`GCController.shouldMonitorBackgroundEvents = true`** so the Game Controller framework keeps delivering stick and button updates when Gamepad Mouse is not the frontmost app (Apple changed the default to `false` in macOS 11.3). Keep **Enable mouse control** on; the window can stay in the background. A **user-initiated** activity also reduces **App Nap** throttling on the poll timer.
 
@@ -75,6 +68,8 @@ tccutil reset Accessibility com.gamepadmouse.GamepadMouse
 **Longer-term:** In Xcode, set **Signing & Capabilities** to your **Apple Development** team instead of ad hoc only; that keeps identity more stable for day-to-day development (you may still need to re-approve after large changes).
 
 ## Distribution and signing
+
+The **Quick install** app in **`dist/`** is built the same way as a local Release but uses ad hoc signing (“Sign to Run Locally”). For sharing beyond “download the repo,” prefer one of the following:
 
 1. In Xcode: **Product → Archive**, then **Distribute App** → **Copy App** (or export a **Developer ID** signed build for wider distribution).
 2. Zip `GamepadMouse.app` or place it in `/Applications` on the target machine.
